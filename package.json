@@ -1,0 +1,37 @@
+{
+  "name": "@1hive/radspec-registry",
+  "version": "1.0.0",
+  "description": "",
+  "main": " ",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/1hive/radspec-registry.git"
+  },
+  "author": "",
+  "license": "GPL-3.0",
+  "bugs": {
+    "url": "https://github.com/1hive/radspec-registry/issues"
+  },
+  "homepage": "https://github.com/1hive/radspec-registry#readme",
+  "devDependencies": {
+    "@nomiclabs/buidler": "^1.1.2",
+    "@nomiclabs/buidler-ethers": "^1.1.2",
+    "@nomiclabs/buidler-waffle": "^1.1.2",
+    "@types/node": "^13.7.4",
+    "@types/sinon-chai": "^3.2.3",
+    "ethereum-waffle": "^2.3.2",
+    "ethers": "^4.0.45",
+    "ts-node": "^8.6.2",
+    "typescript": "^3.8.2"
+  },
+  "dependencies": {
+    "@aragon/court": "^1.1.1",
+    "@aragon/os": "^4.3.0"
+  }
+}
