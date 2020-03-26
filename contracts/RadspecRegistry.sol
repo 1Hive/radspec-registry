@@ -25,7 +25,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
 
     // Error codes
     string public constant ERROR_FEE_PCT_TOO_BIG = "ERROR_FEE_PCT_TOO_BIG";
-    string public constant ERROR_STAKE_TOO_LOW = "ERROR_STAKE_TOO_LOW";
+    string public constant ERROR_INCORRECT_STAKE_AMOUNT = "ERROR_INCORRECT_STAKE_AMOUNT";
     string public constant ERROR_DISPUTE_EXISTS = "ERROR_DISPUTE_EXISTS";
     string public constant ERROR_ENTRY_DOESNT_EXIST = "ERROR_ENTRY_DOESNT_EXIST";
 
@@ -99,7 +99,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     {
         initialized();
 
-        require(_feePct < PCT_BASE, ERROR_FEE_PCT_TOO_BIG);
+        require(_feePct <= PCT_BASE, ERROR_FEE_PCT_TOO_BIG);
 
         arbitrator = _arbitrator;
         feePct = _feePct;
@@ -126,6 +126,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
         external
         auth(SET_FEE_PERCENTAGE_ROLE)
     {
+        require(_feePct <= PCT_BASE, ERROR_FEE_PCT_TOO_BIG);
         feePct = _feePct;
     }
 
@@ -141,7 +142,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     }
 
     /**
-    * @dev Set beneficiary of registry fees.
+    * @dev Set the fee for upserting.
     * @param _upsertFee The beneficiary of registry fees
     */
     function setUpsertFee(uint256 _upsertFee)
@@ -161,12 +162,15 @@ contract RadspecRegistry is IArbitrable, AragonApp {
         external
         payable
     {
+        require(msg.value == upsertFee, ERROR_INCORRECT_STAKE_AMOUNT);
+
+        uint256 fee = msg.value.mul(feePct).div(PCT_BASE);
+        claimableFees += fee;
+
         Entry storage entry_ = entries[_scope][_sig];
-        entry_.stake = upsertFee;
+        entry_.stake = msg.value.sub(fee);
         entry_.cid = _cid;
         entry_.submitter = msg.sender;
-
-        // TODO: Update Claimable fees.
 
         emit EntryUpserted(_scope, _sig, msg.sender, 0, _cid);
     }
@@ -239,6 +243,9 @@ contract RadspecRegistry is IArbitrable, AragonApp {
         external
         auth(REMOVE_ENTRY_ROLE)
     {
+        Entry storage entry_ = entries[_scope][_sig];
+        claimableFees = claimableFees.add(entry_.stake);
+
         _removeEntry(_scope, _sig);
     }
 
@@ -266,7 +273,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     {
         // We don't need to check that the entry exists, since this
         // check will fail if it doesn't.
-        // TODO: Set DisputeID to 0 in ruling.
+        // TODO: Set DisputeID to 0 in rule().
         require(entries[_scope][_sig].disputeId == 0, ERROR_DISPUTE_EXISTS);
 
         (address recipient, ERC20 feeToken, uint256 disputeFees) = arbitrator.getDisputeFees();

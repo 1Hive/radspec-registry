@@ -1,7 +1,7 @@
 const RadspecRegistry = artifacts.require('RadspecRegistry')
 
 const { hash } = require('eth-ens-namehash')
-const deployDAO = require('../helpers/deployDAO')
+const deployDAO = require('./helpers/deployDAO')
 const BN = require('bn.js')
 
 const ANY_ADDRESS = '0xffffffffffffffffffffffffffffffffffffffff'
@@ -17,7 +17,8 @@ const deployedContract = receipt => getLog(receipt, 'NewAppProxy', 'proxy')
 
 contract('RadspecRegistry', () => {
   let accounts, appManager
-  let SET_BENEFICIARY_ROLE, SET_FEE_PERCENTAGE_ROLE, SET_ARBITRATOR_ROLE, SET_UPSERT_FEE_ROLE, STAKED_UPSERT_ENTRY_ROLE, UPSERT_ENTRY_ROLE, REMOVE_ENTRY_ROLE
+  let SET_BENEFICIARY_ROLE, SET_FEE_PERCENTAGE_ROLE, SET_ARBITRATOR_ROLE, SET_UPSERT_FEE_ROLE,
+    STAKED_UPSERT_ENTRY_ROLE, UPSERT_ENTRY_ROLE, REMOVE_ENTRY_ROLE
   let radspecRegistryBase, radspecRegistry
 
   before('deploy base radspecRegistry', async () => {
@@ -26,6 +27,12 @@ contract('RadspecRegistry', () => {
 
     radspecRegistryBase = await RadspecRegistry.new()
     SET_BENEFICIARY_ROLE = await radspecRegistryBase.SET_BENEFICIARY_ROLE()
+    SET_FEE_PERCENTAGE_ROLE = await radspecRegistryBase.SET_FEE_PERCENTAGE_ROLE()
+    SET_ARBITRATOR_ROLE = await radspecRegistryBase.SET_ARBITRATOR_ROLE()
+    SET_UPSERT_FEE_ROLE = await radspecRegistryBase.SET_UPSERT_FEE_ROLE()
+    STAKED_UPSERT_ENTRY_ROLE = await radspecRegistryBase.STAKED_UPSERT_ENTRY_ROLE()
+    UPSERT_ENTRY_ROLE = await radspecRegistryBase.UPSERT_ENTRY_ROLE()
+    REMOVE_ENTRY_ROLE = await radspecRegistryBase.REMOVE_ENTRY_ROLE()
   })
 
   beforeEach('deploy dao and radspecRegistry', async () => {
