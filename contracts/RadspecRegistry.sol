@@ -8,8 +8,6 @@ import "./InterfacesV4/IArbitrable.sol";
 import "@aragon/os/contracts/lib/math/SafeMath.sol";
 import "@aragon/os/contracts/lib/math/SafeMath64.sol";
 
-// TODO Add pull fees method
-
 contract RadspecRegistry is IArbitrable, AragonApp {
     using SafeMath for uint256;
     using SafeMath64 for uint64;
@@ -27,7 +25,10 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     string public constant ERROR_FEE_PCT_TOO_BIG = "ERROR_FEE_PCT_TOO_BIG";
     string public constant ERROR_INCORRECT_STAKE_AMOUNT = "ERROR_INCORRECT_STAKE_AMOUNT";
     string public constant ERROR_DISPUTE_EXISTS = "ERROR_DISPUTE_EXISTS";
+    string public constant ERROR_DISPUTE_DOESNT_EXIST = "ERROR_DISPUTE_DOESNT_EXIST";
     string public constant ERROR_ENTRY_DOESNT_EXIST = "ERROR_ENTRY_DOESNT_EXIST";
+    string public constant ERROR_NOT_ARBITRATOR = "ERROR_NOT_ARBITRATOR";
+    string public constant ERROR_ETH_TRANSFER_FAILED = "ERROR_ETH_TRANSFER_FAILED";
 
     // Misc constants
     uint64 public constant PCT_BASE = 10 ** 18; // 0% = 0; 1% = 10^16; 100% = 10^18
@@ -35,12 +36,13 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     // Storage
     struct Entry {
         uint256 stake;
-        string cid;
+        string cid; // Content identifier
         address submitter;
         uint256 disputeId;
     }
 
     struct DisputeInfo {
+        address creator;
         address scope;
         bytes4 sig;
     }
@@ -85,6 +87,12 @@ contract RadspecRegistry is IArbitrable, AragonApp {
      * @param disputeId The Aragon Court dispute ID for the dispute.
      */
     event EntryDisputed(address indexed scope, bytes4 indexed sig, uint256 disputeId);
+
+    /**
+     * @dev Emitted when fees are claimed.
+     * @param feesClaimed The value of the fees claimed.
+     */
+    event FeesClaimed(uint256 feesClaimed);
 
     /**
      * @dev Initializes the registry.
@@ -176,6 +184,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     }
 
     /**
+     * @notice Insert or update entry for `_scope` and `_sig` with content hash `_cid`
      * @dev Upsert a registry entry without a stake.
      * @param _scope The scope of the entry. If the scope is the zero address, then the entry is global.
      * @param _sig The signature of the method the entry is describing.
@@ -255,6 +264,21 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     }
 
     /**
+     * @dev Claim all fees to the beneficiary address
+     */
+    function claimFees()
+        external
+        nonReentrant
+    {
+        bool success = beneficiary.call.value(claimableFees)();
+        require(success, ERROR_ETH_TRANSFER_FAILED);
+
+        emit FeesClaimed(claimableFees);
+
+        claimableFees = 0;
+    }
+
+    /**
      * @dev Dispute an entry in the registry.
      * @param _scope The scope of the entry. If the scope is the zero address, then the entry is global.
      * @param _sig The signature of the method the entry is describing.
@@ -271,16 +295,20 @@ contract RadspecRegistry is IArbitrable, AragonApp {
         internal
         returns (uint256)
     {
-        // We don't need to check that the entry exists, since this
-        // check will fail if it doesn't.
-        // TODO: Set DisputeID to 0 in rule().
-        require(entries[_scope][_sig].disputeId == 0, ERROR_DISPUTE_EXISTS);
+        Entry storage entry = entries[_scope][_sig];
+        require(_hasEntry(_scope, _sig), ERROR_ENTRY_DOESNT_EXIST);
+        require(disputes[entry.disputeId].creator == address(0), ERROR_DISPUTE_EXISTS);
 
         (address recipient, ERC20 feeToken, uint256 disputeFees) = arbitrator.getDisputeFees();
         feeToken.approve(recipient, disputeFees);
 
-        // TODO _metadata
-        return arbitrator.createDispute(2, "");
+        // First 20 bytes is the _scope, final 4 bytes is the function signature
+        bytes memory metadata = abi.encodePacked(_scope, _sig);
+        uint256 disputeId = arbitrator.createDispute(2, metadata);
+
+        disputes[disputeId] = DisputeInfo(msg.sender, _scope, _sig);
+
+        return disputeId;
     }
 
     /**
@@ -321,8 +349,7 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     )
         internal
     {
-        // TODO Error message
-        require(_disputeExists(_disputeId));
+        require(_disputeExists(_disputeId), ERROR_DISPUTE_DOESNT_EXIST);
         emit EvidenceSubmitted(_disputeId, msg.sender, _evidence, _finished);
 
         if (_finished) {
@@ -335,19 +362,24 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     * @param _disputeId Identification number of the dispute to be ruled
     * @param _ruling Ruling given by the arbitrator, where 0 is reserved for "refused to make a decision"
     */
-    function rule(uint256 _disputeId, uint256 _ruling) external {
-        // TODO Error messages
-        require(msg.sender == address(arbitrator));
-        require(_disputeExists(_disputeId));
+    function rule(uint256 _disputeId, uint256 _ruling) external nonReentrant {
+        // TODO: manage outcomes dependant on different rulings.
+        require(msg.sender == address(arbitrator), ERROR_NOT_ARBITRATOR);
+        require(_disputeExists(_disputeId), ERROR_DISPUTE_DOESNT_EXIST);
 
-        // TODO Transfer stake to plaintiff
-        // TODO Remove entry
-        // TODO Remove dispute
+        DisputeInfo storage disputeInfo = disputes[_disputeId];
+        Entry storage entry = entries[disputeInfo.scope][disputeInfo.sig];
+
+        bool success = disputeInfo.creator.call.value(entry.stake)();
+        require(success, ERROR_ETH_TRANSFER_FAILED);
+
+        _removeEntry(disputeInfo.scope, disputeInfo.sig);
+        delete disputes[_disputeId];
 
         emit Ruled(IArbitrator(msg.sender), _disputeId, _ruling);
     }
 
-    function _disputeExists(uint256 _disputeId) internal returns (bool) {
+    function _disputeExists(uint256 _disputeId) view internal returns (bool) {
         return disputes[_disputeId].scope != address(0);
     }
 }
