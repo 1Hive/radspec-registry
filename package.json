@@ -20,18 +20,23 @@
   },
   "homepage": "https://github.com/1hive/radspec-registry#readme",
   "devDependencies": {
-    "@nomiclabs/buidler": "^1.1.2",
-    "@nomiclabs/buidler-ethers": "^1.1.2",
-    "@nomiclabs/buidler-waffle": "^1.1.2",
+    "@nomiclabs/buidler": "1.2.0",
+    "@nomiclabs/buidler-ethers": "1.2.0",
+    "@nomiclabs/buidler-truffle5": "1.2.0",
+    "@nomiclabs/buidler-waffle": "1.2.0",
+    "@nomiclabs/buidler-web3": "1.2.0",
     "@types/node": "^13.7.4",
     "@types/sinon-chai": "^3.2.3",
     "ethereum-waffle": "^2.3.2",
     "ethers": "^4.0.45",
     "ts-node": "^8.6.2",
-    "typescript": "^3.8.2"
+    "typescript": "^3.8.2",
+    "web3": "^1.2.6"
   },
   "dependencies": {
     "@aragon/court": "^1.1.1",
-    "@aragon/os": "^4.3.0"
+    "@aragon/os": "^4.3.0",
+    "@aragon/test-helpers": "^2.1.0",
+    "eth-ens-namehash": "^2.0.8"
   }
 }
