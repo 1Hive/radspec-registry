@@ -360,20 +360,25 @@ contract RadspecRegistry is IArbitrable, AragonApp {
     /**
     * @dev Give a ruling for a certain dispute, the account calling it must have rights to rule on the contract
     * @param _disputeId Identification number of the dispute to be ruled
-    * @param _ruling Ruling given by the arbitrator, where 0 is reserved for "refused to make a decision"
+    * @param _ruling Ruling given by the arbitrator, where 0, 1 and 2 are reasons to void the dispute, 3 represents
+    *        a failed dispute and 4 represents a successful dispute.
     */
     function rule(uint256 _disputeId, uint256 _ruling) external nonReentrant {
-        // TODO: manage outcomes dependant on different rulings.
         require(msg.sender == address(arbitrator), ERROR_NOT_ARBITRATOR);
         require(_disputeExists(_disputeId), ERROR_DISPUTE_DOESNT_EXIST);
 
         DisputeInfo storage disputeInfo = disputes[_disputeId];
         Entry storage entry = entries[disputeInfo.scope][disputeInfo.sig];
 
-        bool success = disputeInfo.creator.call.value(entry.stake)();
-        require(success, ERROR_ETH_TRANSFER_FAILED);
+        if (_ruling == 4) {
+            bool success = disputeInfo.creator.call.value(entry.stake)();
+            require(success, ERROR_ETH_TRANSFER_FAILED);
 
-        _removeEntry(disputeInfo.scope, disputeInfo.sig);
+            _removeEntry(disputeInfo.scope, disputeInfo.sig);
+        } else {
+            entry.disputeId = 0;
+        }
+
         delete disputes[_disputeId];
 
         emit Ruled(IArbitrator(msg.sender), _disputeId, _ruling);
